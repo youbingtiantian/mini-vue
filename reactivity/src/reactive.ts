@@ -1,12 +1,14 @@
 // 创建proxy代理对象时，传递的拦截方法handlers
 import { mutableHandlers } from "./baseHandlers"
 
-// 创建weak map对象 作为缓存代理对象使用(弱引用，性能)
+// 创建weakMap对象 作为缓存代理对象使用
 export const reactiveMap = new WeakMap<object, any>()
 
 // reactive方法
 export function reactive(target: object){
+
   return createReactiveObject(target, mutableHandlers, reactiveMap)
+  
 }
 
 // 创建或者取到缓存：代理对象
