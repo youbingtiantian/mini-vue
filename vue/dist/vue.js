@@ -57,6 +57,18 @@ var Vue = (function (exports) {
 
     // 测试ts路径导入
     var isArray = Array.isArray;
+    var isObject = function (value) {
+        return value !== null && typeof value === 'object';
+    };
+    /**
+     * 对比数据是否改变
+     * @param value
+     * @param oldValue
+     * @returns
+     */
+    var hasChanged = function (value, oldValue) {
+        return !Object.is(value, oldValue);
+    };
 
     // 返回dep数据
     var createDep = function (effects) {
@@ -188,7 +200,7 @@ var Vue = (function (exports) {
     };
 
     // 创建proxy代理对象时，传递的拦截方法handlers
-    // 创建weak map对象 作为缓存代理对象使用(弱引用，性能)
+    // 创建weakMap对象 作为缓存代理对象使用
     var reactiveMap = new WeakMap();
     // reactive方法
     function reactive(target) {
@@ -208,9 +220,68 @@ var Vue = (function (exports) {
         // 返回代理对象
         return proxy;
     }
+    var toReactive = function (value) {
+        return isObject(value) ? reactive(value) : value;
+    };
+
+    function ref(value) {
+        return createRef(value, false);
+    }
+    function createRef(rawValue, shallow) {
+        if (isRef(rawValue)) {
+            return rawValue;
+        }
+        return new RefImpl(rawValue, shallow);
+    }
+    var RefImpl = /** @class */ (function () {
+        function RefImpl(value, __v_isShallow) {
+            this.__v_isShallow = __v_isShallow;
+            this.dep = undefined;
+            this.__v_isRef = true;
+            this._rawValue = value;
+            this._value = __v_isShallow ? value : toReactive(value);
+        }
+        Object.defineProperty(RefImpl.prototype, "value", {
+            get: function () {
+                trackRefValue(this);
+                return this._value;
+            },
+            set: function (newVal) {
+                if (hasChanged(newVal, this._rawValue)) {
+                    this._rawValue = newVal;
+                    this._value = toReactive(newVal);
+                    triggerRefValue(this);
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        return RefImpl;
+    }());
+    // 收集依赖
+    function trackRefValue(ref) {
+        if (activeEffect) {
+            trackEffects(ref.dep || (ref.dep = createDep()));
+        }
+    }
+    // 触发依赖
+    function triggerRefValue(ref) {
+        if (ref.dep) {
+            triggerEffects(ref.dep);
+        }
+    }
+    /**
+     *
+     * 是否为 ref
+     * @returns
+     */
+    function isRef(r) {
+        return !!(r && r.__v_isRef === true);
+    }
 
     exports.effect = effect;
     exports.reactive = reactive;
+    exports.ref = ref;
 
     Object.defineProperty(exports, '__esModule', { value: true });
 

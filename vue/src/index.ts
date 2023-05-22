@@ -1,3 +1,3 @@
 // 导出reactive
-export { reactive, effect } from '@vue/reactivity'
+export { reactive, effect, ref } from '@vue/reactivity'
  

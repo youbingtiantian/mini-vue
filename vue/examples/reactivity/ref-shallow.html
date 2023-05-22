@@ -16,20 +16,15 @@
   
   <script>
 
-    const { reactive, effect } = Vue
+    const { ref, effect } = Vue
 
-    const obj = reactive({
-      name:'章三'
-    })
+    const obj = ref('章三')
     effect(() => {
-      document.getElementById('p1').innerText = obj.name
+      document.getElementById('p1').innerText = obj.value
     })
-    effect(() => {
-      document.querySelector('#p2').innerText = obj.name
-    })
-
+    
     setTimeout(() => {
-      obj.name = '李四'
+      obj.value = '李四'
     },2000)
   </script>
 </body>

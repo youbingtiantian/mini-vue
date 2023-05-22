@@ -1,5 +1,6 @@
 // 创建proxy代理对象时，传递的拦截方法handlers
 import { mutableHandlers } from "./baseHandlers"
+import { isObject } from "@vue/shared"
 
 // 创建weakMap对象 作为缓存代理对象使用
 export const reactiveMap = new WeakMap<object, any>()
@@ -33,3 +34,8 @@ function createReactiveObject(
   // 返回代理对象
   return proxy
 }
+
+export const toReactive = <T extends unknown>(value: T): T => {
+  return isObject(value) ? reactive(value as object) : value
+}
+
