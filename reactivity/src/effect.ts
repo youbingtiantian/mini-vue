@@ -35,7 +35,6 @@ export class ReactiveEffect<T = any> {
  */
 // 触发getter时，触发track（本质就是建立数据与依赖之间的关联关系）
 export function track(target: object, key: unknown){
-  console.log('收集依赖',target, key);
 
   // 触发getter时，触发了effect方法，可能记录了当前的依赖函数
   if(!activeEffect) return
@@ -71,7 +70,6 @@ export function trackEffects (dep: Dep) {
  * @param newValue 
  */
 export function trigger(target: object, key: unknown, newValue: unknown){
-  console.log('触发依赖', target, key, newValue);
 
   // 从缓存的weakmap中获取当前对象
   const depsMap = targetMap.get(target)
