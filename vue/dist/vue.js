@@ -69,6 +69,9 @@ var Vue = (function (exports) {
     var hasChanged = function (value, oldValue) {
         return !Object.is(value, oldValue);
     };
+    var isFunction = function (value) {
+        return typeof value === 'function';
+    };
 
     // 返回dep数据
     var createDep = function (effects) {
@@ -86,8 +89,10 @@ var Vue = (function (exports) {
     // 定义当前触发的标记类
     var activeEffect;
     var ReactiveEffect = /** @class */ (function () {
-        function ReactiveEffect(fn) {
+        function ReactiveEffect(fn, scheduler) {
+            if (scheduler === void 0) { scheduler = null; }
             this.fn = fn;
+            this.scheduler = scheduler;
         }
         // 执行run函数 等于执行依赖函数返回结果
         ReactiveEffect.prototype.run = function () {
@@ -105,7 +110,6 @@ var Vue = (function (exports) {
      */
     // 触发getter时，触发track（本质就是建立数据与依赖之间的关联关系）
     function track(target, key) {
-        console.log('收集依赖', target, key);
         // 触发getter时，触发了effect方法，可能记录了当前的依赖函数
         if (!activeEffect)
             return;
@@ -137,7 +141,6 @@ var Vue = (function (exports) {
      * @param newValue
      */
     function trigger(target, key, newValue) {
-        console.log('触发依赖', target, key, newValue);
         // 从缓存的weakmap中获取当前对象
         var depsMap = targetMap.get(target);
         if (!depsMap)
@@ -150,14 +153,21 @@ var Vue = (function (exports) {
         triggerEffects(dep);
     }
     function triggerEffects(dep) {
-        var e_1, _a;
+        var e_1, _a, e_2, _b;
         // 将其转化为真实数组
         var effets = isArray(dep) ? dep : __spreadArray([], __read(dep), false);
         try {
             // 循环依次执行
             for (var effets_1 = __values(effets), effets_1_1 = effets_1.next(); !effets_1_1.done; effets_1_1 = effets_1.next()) {
                 var item = effets_1_1.value;
-                item.run();
+                if (item.computed) {
+                    if (item.scheduler) {
+                        item.scheduler();
+                    }
+                    else {
+                        item.run();
+                    }
+                }
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -166,6 +176,26 @@ var Vue = (function (exports) {
                 if (effets_1_1 && !effets_1_1.done && (_a = effets_1.return)) _a.call(effets_1);
             }
             finally { if (e_1) throw e_1.error; }
+        }
+        try {
+            for (var effets_2 = __values(effets), effets_2_1 = effets_2.next(); !effets_2_1.done; effets_2_1 = effets_2.next()) {
+                var item = effets_2_1.value;
+                if (!item.computed) {
+                    if (item.scheduler) {
+                        item.scheduler();
+                    }
+                    else {
+                        item.run();
+                    }
+                }
+            }
+        }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (effets_2_1 && !effets_2_1.done && (_b = effets_2.return)) _b.call(effets_2);
+            }
+            finally { if (e_2) throw e_2.error; }
         }
     }
 
@@ -189,7 +219,7 @@ var Vue = (function (exports) {
             // 返回当前最新的值
             var res = Reflect.set(target, key, value, receiver);
             // 同时进行依赖触发
-            trigger(target, key, value);
+            trigger(target, key);
             // 返回数据
             return res;
         };
@@ -279,6 +309,46 @@ var Vue = (function (exports) {
         return !!(r && r.__v_isRef === true);
     }
 
+    var ComputedRefImpl = /** @class */ (function () {
+        function ComputedRefImpl(getter) {
+            var _this = this;
+            this.dep = undefined;
+            this.__v_isRef = true;
+            this._dirty = true;
+            this.effect = new ReactiveEffect(getter, function () {
+                if (!_this._dirty) {
+                    _this._dirty = true;
+                    triggerRefValue(_this);
+                }
+            });
+            this.effect.computed = this;
+        }
+        Object.defineProperty(ComputedRefImpl.prototype, "value", {
+            get: function () {
+                trackRefValue(this);
+                if (this._dirty) {
+                    this._dirty = false;
+                    this._value = this.effect.run();
+                }
+                return this._value;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        return ComputedRefImpl;
+    }());
+    function computed(getterOrOptions) {
+        var getter;
+        // 判断是否是函数
+        var onlyGetter = isFunction(getterOrOptions);
+        if (onlyGetter) {
+            getter = getterOrOptions;
+        }
+        var cRef = new ComputedRefImpl(getter);
+        return cRef;
+    }
+
+    exports.computed = computed;
     exports.effect = effect;
     exports.reactive = reactive;
     exports.ref = ref;
